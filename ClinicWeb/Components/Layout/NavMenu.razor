@@ -1,0 +1,25 @@
+﻿<nav class="navbar-top">
+    <a href="/" class="navbar-brand">
+        <span class="navbar-brand-icon">🐾</span>
+        <span>VetClinic</span>
+    </a>
+    <ul class="nav-links">
+        <li><a href="/" class="@(IsActive("") ? "active" : "")">🏠 Главная</a></li>
+        <li><a href="/clients" class="@(IsActive("/clients") ? "active" : "")"> Клиенты</a></li>
+        <li><a href="/pets" class="@(IsActive("/pets") ? "active" : "")">🐕 Питомцы</a></li>
+        <li><a href="/veterinarians" class="@(IsActive("/veterinarians") ? "active" : "")">👨‍⚕️ Врачи</a></li>
+        <li><a href="/appointments" class="@(IsActive("/appointments") ? "active" : "")">📅 Записи</a></li>
+    </ul>
+</nav>
+
+@code {
+    [Parameter]
+    public string? CurrentUrl { get; set; }
+
+    private bool IsActive(string path)
+    {
+        if (string.IsNullOrEmpty(path) && CurrentUrl == "/")
+            return true;
+        return CurrentUrl?.StartsWith(path, StringComparison.OrdinalIgnoreCase) == true;
+    }
+}

@@ -1,0 +1,97 @@
+﻿@page "/"
+@using ClinicWeb.Services
+@inject IClientRepository ClientRepository
+@inject IVeterinarianRepository VetRepository
+@inject IAppointmentRepository AppointmentRepository
+
+<PageTitle>VetClinic - Ветеринарная клиника</PageTitle>
+
+
+<div class="hero-section">
+    <div class="hero-container">
+        <div class="hero-content">
+            <div class="hero-icon">🐾</div>
+            <h1 class="hero-title">Добро пожаловать в<br />VetClinic</h1>
+            <p class="hero-description">
+                Информационная система для управления ветеринарной клиникой.
+                Ведение базы клиентов, запись на приём, история болезней и полный контроль
+                за здоровьем ваших питомцев.
+            </p>
+            <div class="hero-buttons">
+                <a href="/clients" class="btn-hero-primary">
+                    <span>👥</span> Наши клиенты
+                </a>
+                <a href="/appointments" class="btn-hero-secondary">
+                    <span>📅</span> Запись на приём
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-card-hero">
+                    <div class="stat-number">@clientCount</div>
+                    <div class="stat-label">Клиентов</div>
+                </div>
+                <div class="stat-card-hero">
+                    <div class="stat-number">@petCount</div>
+                    <div class="stat-label">Питомцев</div>
+                </div>
+                <div class="stat-card-hero">
+                    <div class="stat-number">@vetCount</div>
+                    <div class="stat-label">Врачей</div>
+                </div>
+                <div class="stat-card-hero">
+                    <div class="stat-number">@appointmentCount</div>
+                    <div class="stat-label">Записей</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-image-side">
+            <div class="floating-card card-1">🐕</div>
+            <div class="floating-card card-2">🐈</div>
+            <div class="floating-card card-3">🏥</div>
+        </div>
+    </div>
+</div>
+
+
+<div class="features-section">
+    <div class="features-container">
+        <h2 class="section-title">Почему выбирают нас</h2>
+        <div class="features-grid">
+            <div class="feature-card-modern">
+                <div class="feature-icon-wrapper">
+                    <span class="feature-icon">👨⚕️</span>
+                </div>
+                <h3>Опытные врачи</h3>
+                <p>Квалифицированные специалисты с многолетним опытом работы с домашними животными</p>
+            </div>
+            <div class="feature-card-modern">
+                <div class="feature-icon-wrapper">
+                    <span class="feature-icon">🏥</span>
+                </div>
+                <h3>Современное оборудование</h3>
+                <p>Передовое диагностическое и лечебное оборудование для точной постановки диагноза</p>
+            </div>
+            <div class="feature-card-modern">
+                <div class="feature-icon-wrapper">
+                    <span class="feature-icon">💊</span>
+                </div>
+                <h3>Полный спектр услуг</h3>
+                <p>От профилактических осмотров и вакцинации до сложных хирургических операций</p>
+            </div>
+            <div class="feature-card-modern">
+                <div class="feature-icon-wrapper">
+                    <span class="feature-icon">❤️</span>
+                </div>
+                <h3>Забота о питомцах</h3>
+                <p>Индивидуальный подход к каждому пациенту и любовь к животным</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int clientCount = 20;
+    private int petCount = 29;
+    private int vetCount = 5;
+    private int appointmentCount = 15;
+}

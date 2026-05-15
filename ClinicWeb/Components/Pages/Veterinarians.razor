@@ -1,0 +1,108 @@
+﻿@page "/veterinarians"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IVeterinarianRepository VetRepository
+@inject IAppointmentRepository AppointmentRepository
+
+<PageTitle>Врачи - VetClinic</PageTitle>
+
+<div class="page-header">
+    <h1>👨‍⚕️ Врачи</h1>
+</div>
+
+@if (vetsData == null)
+{
+    <div class="loading">Загрузка данных...</div>
+}
+else
+{
+    <div class="vets-grid">
+        @foreach (var vetData in vetsData)
+        {
+            <div class="vet-card">
+                <div class="vet-header">
+                    <h2>@vetData.Vet.FullName</h2>
+                    <span class="specialization-badge">@vetData.Vet.Specialization</span>
+                </div>
+
+                <div class="vet-appointments">
+                    <h4>📅 Ближайшие записи</h4>
+                    
+                    @if (vetData.UpcomingAppointments.Any())
+                    {
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Клиент</th>
+                                    <th>Питомец</th>
+                                    <th>Диагноз / Причина</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var app in vetData.UpcomingAppointments)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap">@app.AppointmentDate.ToString("dd.MM HH:mm")</td>
+                                        <td>@app.Client?.FullName</td>
+                                        <td>@app.Pet?.Name</td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(app.MedicalRecord?.Diagnosis))
+                                            {
+                                                <span class="text-success">✓ @app.MedicalRecord.Diagnosis</span>
+                                            }
+                                            else if (!string.IsNullOrEmpty(app.Reason))
+                                            {
+                                                <span class="text-info"> @app.Reason</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Нет записи</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="empty-msg">На ближайшее время записей нет</p>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<VetDataModel>? vetsData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var vets = await VetRepository.GetAllAsync();
+        var allAppointments = await AppointmentRepository.GetAllAsync();
+
+        vetsData = vets.Select(vet =>
+        {
+            var appointments = allAppointments
+                .Where(a => a.VeterinarianId == vet.Id)
+                .OrderBy(a => a.AppointmentDate)
+                .Take(5)
+                .ToList();
+
+            return new VetDataModel
+            {
+                Vet = vet,
+                UpcomingAppointments = appointments
+            };
+        }).ToList();
+    }
+
+    private class VetDataModel
+    {
+        public Veterinarian Vet { get; set; } = new();
+        public List<Appointment> UpcomingAppointments { get; set; } = new();
+    }
+}

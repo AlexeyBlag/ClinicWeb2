@@ -1,0 +1,138 @@
+﻿@page "/pets"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IPetRepository PetRepository
+@inject IAppointmentRepository AppointmentRepository
+
+<PageTitle>Питомцы - VetClinic</PageTitle>
+
+<div class="page-header">
+    <h1>🐾 Питомцы</h1>
+</div>
+
+@if (pets == null)
+{
+    <div class="loading">Загрузка данных...</div>
+}
+else if (!pets.Any())
+{
+    <div class="alert alert-info">
+        Список питомцев пуст.
+    </div>
+}
+else
+{
+    <div class="table-container">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Кличка</th>
+                    <th>Вид / Порода</th>
+                    <th>Владелец</th>
+                    <th>Лечащий врач</th>
+                    <th>Последний диагноз</th>
+                    <th>Дата приема</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var pet in pets)
+                {
+                    var petInfo = petData.FirstOrDefault(p => p.Pet.Id == pet.Id);
+                    <tr>
+                        <td>@pet.Id</td>
+                        <td><strong>@pet.Name</strong></td>
+                        <td>
+                            @pet.Species<br />
+                            <small class="text-muted">@pet.Breed</small>
+                        </td>
+                        <td>@pet.Client?.FullName</td>
+                        <td>
+                            @if (petInfo?.LastVeterinarian != null)
+                            {
+                                <span>@petInfo.LastVeterinarian.FullName</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Не назначен</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(petInfo?.LastDiagnosis))
+                            {
+                                <span class="text-success">✓ @petInfo.LastDiagnosis</span>
+                            }
+                            else if (!string.IsNullOrEmpty(petInfo?.LastReason))
+                            {
+                                <span class="text-info">📋 @petInfo.LastReason</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Нет записей</span>
+                            }
+                        </td>
+                        <td>
+                            @if (petInfo?.LastAppointmentDate.HasValue == true)
+                            {
+                                <span>@petInfo.LastAppointmentDate.Value.ToString("dd.MM.yyyy HH:mm")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Нет записей</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Pet>? pets;
+    private List<PetInfo> petData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPets();
+    }
+
+    private async Task LoadPets()
+    {
+        pets = await PetRepository.GetAllAsync();
+        
+
+        var allAppointments = await AppointmentRepository.GetAllAsync();
+        
+
+        petData = pets.Select(pet =>
+        {
+            var petAppointments = allAppointments
+                .Where(a => a.PetId == pet.Id)
+                .OrderByDescending(a => a.AppointmentDate)
+                .ToList();
+            
+            var lastAppointment = petAppointments.FirstOrDefault();
+            
+            return new PetInfo
+            {
+                Pet = pet,
+                LastVeterinarian = lastAppointment?.Veterinarian,
+                LastDiagnosis = lastAppointment?.MedicalRecord?.Diagnosis,
+                LastReason = lastAppointment?.Reason,
+                LastAppointmentDate = lastAppointment?.AppointmentDate
+            };
+        }).ToList();
+    }
+
+
+    private class PetInfo
+    {
+        public Pet Pet { get; set; } = new();
+        public Veterinarian? LastVeterinarian { get; set; }
+        public string? LastDiagnosis { get; set; }
+        public string? LastReason { get; set; }
+        public DateTime? LastAppointmentDate { get; set; }
+    }
+}

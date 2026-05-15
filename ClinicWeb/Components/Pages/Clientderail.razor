@@ -1,0 +1,117 @@
+﻿@page "/client/{Id:int}"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IClientRepository ClientRepository
+@inject IAppointmentRepository AppointmentRepository
+
+<PageTitle>Клиент: @(client?.FullName)</PageTitle>
+
+@if (client == null)
+{
+    <div class="loading">Загрузка данных клиента...</div>
+}
+else
+{
+
+    <div class="page-header">
+        <h1>👤 @(client.FullName)</h1>
+        <a href="/clients" class="btn btn-secondary">← Назад к списку</a>
+    </div>
+
+    <div class="details-container">
+
+        <div class="card info-card">
+            <h3>📋 Контакты</h3>
+            <div class="info-row">
+                <span>Телефон:</span>
+                <strong>@client.Phone</strong>
+            </div>
+            <div class="info-row">
+                <span>Email:</span>
+                <strong>@client.Email</strong>
+            </div>
+        </div>
+
+
+        <div class="card pets-card">
+            <h3>🐾 Питомцы (@client.Pets?.Count)</h3>
+            @if (client.Pets != null && client.Pets.Any())
+            {
+                <div class="pets-grid">
+                    @foreach (var pet in client.Pets)
+                    {
+                        <div class="pet-badge">
+                            <span class="pet-name">@pet.Name</span>
+                            <span class="pet-breed">@pet.Breed</span>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="empty-msg">Питомцы не добавлены</p>
+            }
+        </div>
+    </div>
+
+    <div class="card history-card">
+        <h3>📅 История посещений</h3>
+        
+        @if (appointments != null && appointments.Any())
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Ветеринар</th>
+                        <th>Питомец</th>
+                        <th>Диагноз / Причина</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var app in appointments.OrderByDescending(a => a.AppointmentDate))
+                    {
+                        <tr>
+                            <td>@app.AppointmentDate.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@app.Veterinarian?.FullName</td>
+                            <td>@app.Pet?.Name</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(app.MedicalRecord?.Diagnosis))
+                                {
+                                    <strong class="text-success">✓ @app.MedicalRecord.Diagnosis</strong>
+                                }
+                                else if (!string.IsNullOrEmpty(app.Reason))
+                                {
+                                    <span class="text-info">📋 @app.Reason</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Нет записи</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="empty-msg">История посещений пуста</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Client? client;
+    private List<Appointment>? appointments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = await ClientRepository.GetByIdAsync(Id);
+        
+        var allAppointments = await AppointmentRepository.GetAllAsync();
+        appointments = allAppointments.Where(a => a.ClientId == Id).ToList();
+    }
+}

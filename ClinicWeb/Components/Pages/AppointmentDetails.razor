@@ -1,0 +1,330 @@
+﻿@page "/appointment/{Id:int}"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IAppointmentRepository AppointmentRepository
+@inject NavigationManager Navigation
+
+<PageTitle>Запись #@appointment?.Id</PageTitle>
+
+@if (appointment == null)
+{
+    <div class="loading">Загрузка данных...</div>
+}
+else
+{
+
+    <div class="page-header">
+        <div>
+            <h1>📅 Запись #@appointment.Id</h1>
+            <p class="text-muted">@appointment.AppointmentDate.ToString("dd MMMM yyyy, dddd")</p>
+        </div>
+        <div class="header-actions">
+            <span class="status-badge @(appointment.Status == "Завершено" ? "completed" : 
+                                     appointment.Status == "Отменено" ? "cancelled" : "planned")">
+                @appointment.Status
+            </span>
+            <a href="/appointments" class="btn btn-secondary">← Назад</a>
+        </div>
+    </div>
+
+    <div class="details-grid">
+
+        <div class="card">
+            <h3>👥 Информация о записи</h3>
+            <div class="info-row">
+                <span>👤 Клиент:</span>
+                <strong>@appointment.Client?.FullName</strong>
+            </div>
+            <div class="info-row">
+                <span>📞 Телефон:</span>
+                <strong>@appointment.Client?.Phone</strong>
+            </div>
+            <div class="info-row">
+                <span>🐾 Питомец:</span>
+                <strong>@appointment.Pet?.Name</strong>
+                <small class="text-muted">(@appointment.Pet?.Species, @appointment.Pet?.Breed)</small>
+            </div>
+            <div class="info-row">
+                <span>👨‍⚕️ Врач:</span>
+                <strong>@appointment.Veterinarian?.FullName</strong>
+            </div>
+            <div class="info-row">
+                <span>⏰ Время:</span>
+                <strong>@appointment.AppointmentDate.ToString("HH:mm")</strong>
+            </div>
+            <div class="info-row">
+                <span>📋 Причина:</span>
+                <strong>@appointment.Reason</strong>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🏥 Медицинская карта</h3>
+            
+            @if (isEditing)
+            {
+
+                <div class="edit-form">
+                    <div class="form-group">
+                        <label>🩺 Диагноз *</label>
+                        <textarea @ind-Value="diagnosis" class="form-control" rows="2" 
+                                  placeholder="Введите диагноз..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>💊 Назначенное лечение</label>
+                        <textarea @ind-Value="treatment" class="form-control" rows="3" 
+                                  placeholder="Лекарства, процедуры..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📝 Рекомендации</label>
+                        <textarea @ind-Value="recommendations" class="form-control" rows="2" 
+                                  placeholder="Рекомендации владельцу..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>💰 Стоимость приёма (₽)</label>
+                        <input type="number" @bind="cost" class="form-control" 
+                               placeholder="0" min="0" step="0.01" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>💳 Статус оплаты</label>
+                        <select @bind="paymentStatus" class="form-control">
+                            <option value="Не оплачено">Не оплачено</option>
+                            <option value="Оплачено">Оплачено</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button @onclick="SaveMedicalRecord" class="btn btn-primary">
+                            💾 Сохранить
+                        </button>
+                        <button @onclick="CancelEdit" class="btn btn-secondary">
+                            ❌ Отмена
+                        </button>
+                    </div>
+                </div>
+            }
+            else
+            {
+
+                @if (appointment.MedicalRecord != null && !string.IsNullOrEmpty(appointment.MedicalRecord.Diagnosis))
+                {
+                    <div class="medical-info">
+                        <div class="info-row">
+                            <span>🩺 Диагноз:</span>
+                            <strong class="text-success">@appointment.MedicalRecord.Diagnosis</strong>
+                        </div>
+                        <div class="info-row">
+                            <span>💊 Лечение:</span>
+                            <span>@appointment.MedicalRecord.Treatment</span>
+                        </div>
+                        <div class="info-row">
+                            <span>📝 Рекомендации:</span>
+                            <span>@appointment.MedicalRecord.Notes</span>
+                        </div>
+                        
+                        @if (appointment.Cost.HasValue)
+                        {
+                            <div class="info-row">
+                                <span>💰 Стоимость:</span>
+                                <strong>@appointment.Cost.Value.ToString("F2") ₽</strong>
+                            </div>
+                        }
+                        
+                        <div class="info-row">
+                            <span>💳 Оплата:</span>
+                            <span class="payment-badge @(appointment.PaymentStatus == "Оплачено" ? "paid" : "unpaid")">
+                                @appointment.PaymentStatus
+                            </span>
+                        </div>
+
+                        @if (appointment.Status != "Завершено")
+                        {
+                            <button @onclick="StartEdit" class="btn btn-primary btn-sm">
+                                ✏️ Редактировать
+                            </button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <p>Медицинская карта не заполнена</p>
+                        @if (appointment.Status != "Завершено" && appointment.Status != "Отменено")
+                        {
+                            <button @onclick="StartEdit" class="btn btn-primary">
+                                📝 Заполнить карту
+                            </button>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+
+    <div class="card history-card">
+        <h3>📜 История посещений питомца</h3>
+        
+        @if (petHistory != null && petHistory.Any())
+        {
+            <div class="history-list">
+                @foreach (var hist in petHistory.OrderByDescending(h => h.AppointmentDate))
+                {
+                    <div class="history-item @(hist.Id == appointment.Id ? "current" : "")">
+                        <div class="history-date">
+                            <span class="day">@hist.AppointmentDate.ToString("dd")</span>
+                            <span class="month">@hist.AppointmentDate.ToString("MMM")</span>
+                        </div>
+                        <div class="history-content">
+                            <div class="history-header">
+                                <span class="status-badge @(hist.Status == "Завершено" ? "completed" : "planned")">
+                                    @hist.Status
+                                </span>
+                                <span class="history-time">@hist.AppointmentDate.ToString("HH:mm")</span>
+                            </div>
+                            <div class="history-details">
+                                <span><strong>Врач:</strong> @hist.Veterinarian?.FullName</span>
+                                <span><strong>Причина:</strong> @hist.Reason</span>
+                                @if (hist.MedicalRecord != null && !string.IsNullOrEmpty(hist.MedicalRecord.Diagnosis))
+                                {
+                                    <span><strong>Диагноз:</strong> @hist.MedicalRecord.Diagnosis</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="empty-msg">Это первое посещение</p>
+        }
+    </div>
+
+
+    @if (appointment.Status != "Завершено" && appointment.Status != "Отменено")
+    {
+        <div class="actions-bar">
+            <button @onclick="CompleteAppointment" class="btn btn-success">
+                ✅ Завершить приём
+            </button>
+            <button @onclick="CancelAppointment" class="btn btn-danger">
+                ❌ Отменить запись
+            </button>
+            <button @onclick="PrintRecord" class="btn btn-outline">
+                🖨️ Распечатать
+            </button>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Appointment? appointment;
+    private List<Appointment>? petHistory;
+    
+
+    private bool isEditing = false;
+    private string diagnosis = "";
+    private string treatment = "";
+    private string recommendations = "";
+    private decimal cost = 0;
+    private string paymentStatus = "Не оплачено";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAppointment();
+    }
+
+    private async Task LoadAppointment()
+    {
+        appointment = await AppointmentRepository.GetByIdAsync(Id);
+        
+        if (appointment?.PetId.HasValue == true)
+        {
+
+            var allAppointments = await AppointmentRepository.GetAllAsync();
+            petHistory = allAppointments
+                .Where(a => a.PetId == appointment.PetId)
+                .ToList();
+        }
+        
+
+        if (appointment?.MedicalRecord != null)
+        {
+            diagnosis = appointment.MedicalRecord.Diagnosis ?? "";
+            treatment = appointment.MedicalRecord.Treatment ?? "";
+            recommendations = appointment.MedicalRecord.Notes ?? "";
+        }
+        cost = appointment?.Cost ?? 0;
+        paymentStatus = appointment?.PaymentStatus ?? "Не оплачено";
+    }
+
+    private void StartEdit()
+    {
+        isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+
+        if (appointment?.MedicalRecord != null)
+        {
+            diagnosis = appointment.MedicalRecord.Diagnosis ?? "";
+            treatment = appointment.MedicalRecord.Treatment ?? "";
+            recommendations = appointment.MedicalRecord.Notes ?? "";
+        }
+        cost = appointment?.Cost ?? 0;
+        paymentStatus = appointment?.PaymentStatus ?? "Не оплачено";
+    }
+
+    private async Task SaveMedicalRecord()
+    {
+        if (appointment == null) return;
+        
+        try
+        {
+
+            appointment.Status = "Завершено";
+            await AppointmentRepository.UpdateAsync(appointment);
+            
+            isEditing = false;
+            await LoadAppointment();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex.Message}");
+        }
+    }
+
+    private async Task CompleteAppointment()
+    {
+        if (appointment != null)
+        {
+            appointment.Status = "Завершено";
+            await AppointmentRepository.UpdateAsync(appointment);
+            await LoadAppointment();
+        }
+    }
+
+    private async Task CancelAppointment()
+    {
+        if (appointment != null)
+        {
+            appointment.Status = "Отменено";
+            await AppointmentRepository.UpdateAsync(appointment);
+            await LoadAppointment();
+        }
+    }
+
+    private void PrintRecord()
+    {
+        Navigation.NavigateTo("javascript:window.print()", true);
+    }
+}

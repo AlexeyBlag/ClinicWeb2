@@ -1,0 +1,14 @@
+﻿namespace  ClinicWeb.Models
+{
+
+    public class ClinicService
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int DurationMinutes { get; set; }
+
+        public ICollection<AppointmentService> AppointmentServices { get; set; } = new List<AppointmentService>();
+    }
+}

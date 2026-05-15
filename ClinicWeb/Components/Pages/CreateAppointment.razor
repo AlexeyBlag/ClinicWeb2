@@ -1,0 +1,205 @@
+﻿@page "/appointment-create-old"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IAppointmentRepository AppointmentRepository
+@inject IClientRepository ClientRepository
+@inject IPetRepository PetRepository
+@inject IVeterinarianRepository VetRepository
+@inject NavigationManager Navigation
+
+<PageTitle>Новая запись - VetClinic</PageTitle>
+
+<div class="page-header">
+    <h1>📅 Новая запись на приём</h1>
+    <a href="/appointments" class="btn btn-secondary">← Назад</a>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @statusClass">@statusMessage</div>
+}
+
+<div class="form-container">
+    <EditForm Model="@appointment" OnValidSubmit="HandleValidSubmit" FormName="CreateAppointmentForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-summary" />
+
+
+        <div class="form-section">
+            <h3>👤 Клиент и питомец</h3>
+            
+            @if (clients == null)
+            {
+                <p>Загрузка клиентов...</p>
+            }
+            else
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Клиент *</label>
+                        <InputSelect @bind-Value="selectedClientId" class="form-control">
+                            <option value="0">Выберите клиента</option>
+                            @foreach (var client in clients)
+                            {
+                                <option value="@client.Id">@client.FullName</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => selectedClientId)" />
+                    </div>
+                </div>
+
+                @if (selectedClientId > 0 && pets != null)
+                {
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Питомец</label>
+                            <InputSelect @bind-Value="selectedPetId" class="form-control">
+                                <option value="0">Без питомца</option>
+                                @foreach (var pet in pets)
+                                {
+                                    <option value="@pet.Id">@pet.Name (@pet.Species)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="form-section">
+            <h3>👨‍️ Ветеринар</h3>
+            
+            @if (veterinarians == null)
+            {
+                <p>Загрузка ветеринаров...</p>
+            }
+            else
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ветеринар *</label>
+                        <InputSelect @bind-Value="appointment.VeterinarianId" class="form-control">
+                            <option value="0">Выберите ветеринара</option>
+                            @foreach (var vet in veterinarians)
+                            {
+                                <option value="@vet.Id">@vet.FullName</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => appointment.VeterinarianId)" />
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="form-section">
+            <h3>⏰ Дата и время</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Дата и время приёма *</label>
+                    <InputDate @bind-Value="appointment.AppointmentDate"
+                               class="form-control"
+                               format="dd.MM.yyyy HH:mm" />
+                    <ValidationMessage For="@(() => appointment.AppointmentDate)" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>📋 Информация о записи</h3>
+            
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Причина записи *</label>
+                    <InputTextArea @bind-Value="appointment.Reason"
+                                   class="form-control"
+                                   rows="3"
+                                   placeholder="Плановый осмотр, вакцинация, болезнь и т.д." />
+                    <ValidationMessage For="@(() => appointment.Reason)" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Статус</label>
+                    <InputSelect @bind-Value="appointment.Status" class="form-control">
+                        <option value="Запланировано">Запланировано</option>
+                        <option value="Подтверждено">Подтверждено</option>
+                    </InputSelect>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Создать запись</button>
+            <a href="/appointments" class="btn btn-secondary">❌ Отмена</a>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private Appointment appointment = new();
+    private List<Client>? clients;
+    private List<Pet>? pets;
+    private List<Veterinarian>? veterinarians;
+    private int selectedClientId;
+    private int selectedPetId;
+    
+    private string? statusMessage;
+    private string? statusClass;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clients = await ClientRepository.GetAllAsync();
+        veterinarians = await VetRepository.GetAllAsync();
+        
+        appointment.AppointmentDate = DateTime.Now.AddDays(1).Date.AddHours(10);
+        appointment.Status = "Запланировано";
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            Console.WriteLine("=== СОЗДАНИЕ ЗАПИСИ ===");
+            Console.WriteLine($"Клиент ID: {selectedClientId}");
+            Console.WriteLine($"Питомец ID: {selectedPetId}");
+            Console.WriteLine($"Ветеринар ID: {appointment.VeterinarianId}");
+            Console.WriteLine($"Дата: {appointment.AppointmentDate}");
+            Console.WriteLine($"Причина: {appointment.Reason}");
+
+            appointment.ClientId = selectedClientId;
+            appointment.PetId = selectedPetId > 0 ? selectedPetId : null;
+            
+            await AppointmentRepository.AddAsync(appointment);
+            
+            Console.WriteLine($"✓ Запись создана с ID: {appointment.Id}");
+
+            statusMessage = "✅ Запись успешно создана! Перенаправление...";
+            statusClass = "alert-success";
+            StateHasChanged();
+
+            await Task.Delay(800);
+            Navigation.NavigateTo("/appointments", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"❌ Ошибка при создании записи: {ex.Message}";
+            statusClass = "alert-danger";
+            Console.WriteLine($"Ошибка: {ex}");
+        }
+    }
+
+    private async Task LoadPets()
+    {
+        if (selectedClientId > 0)
+        {
+            pets = await PetRepository.GetByClientIdAsync(selectedClientId);
+        }
+        else
+        {
+            pets = new List<Pet>();
+        }
+    }
+}

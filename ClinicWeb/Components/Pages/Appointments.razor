@@ -1,0 +1,112 @@
+﻿@page "/appointments"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IAppointmentRepository AppointmentRepository
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Записи на приём</PageTitle>
+
+<div class="page-header">
+    <h1>📅 Записи на приём</h1>
+    <a href="/appointment-create" class="btn btn-primary">
+        <span>➕</span> Новая запись
+    </a>
+</div>
+
+@if (appointments == null)
+{
+    <div class="loading">Загрузка...</div>
+}
+else if (!appointments.Any())
+{
+    <div class="alert alert-info">Нет записей</div>
+}
+else
+{
+    <div class="appointments-grid">
+        @foreach (var appointment in appointments)
+        {
+            <div class="appointment-card">
+                <div class="card-header">
+                    <div class="date-block">
+                        <span class="day">@appointment.AppointmentDate.ToString("dd")</span>
+                        <span class="month">@appointment.AppointmentDate.ToString("MMM")</span>
+                    </div>
+                    <span class="status-badge @(appointment.Status == "Завершено" ? "completed" : "planned")">
+                        @appointment.Status
+                    </span>
+                </div>
+                
+                <div class="card-body">
+                    <div class="info-row">
+                        <span>👤 Клиент:</span>
+                        <span>@appointment.Client?.FullName</span>
+                    </div>
+                    <div class="info-row">
+                        <span>🐾 Питомец:</span>
+                        <span>@appointment.Pet?.Name</span>
+                    </div>
+                    <div class="info-row">
+                        <span>👨‍️ Врач:</span>
+                        <span>@appointment.Veterinarian?.FullName</span>
+                    </div>
+                    <div class="info-row">
+                        <span>📋 Причина:</span>
+                        <span>@appointment.Reason</span>
+                    </div>
+                </div>
+                
+                <div class="card-actions">
+                    <a href="/appointment/@appointment.Id" class="btn btn-info">
+                        📄 Подробнее
+                    </a>
+                    <button type="button"
+                            @onclick="() => ConfirmDeleteAppointment(appointment.Id)"
+                            class="btn btn-danger">
+                        🗑️ Удалить
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Appointment>? appointments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAppointments();
+    }
+
+    private async Task LoadAppointments()
+    {
+        appointments = await AppointmentRepository.GetAllAsync();
+    }
+
+    private async Task ConfirmDeleteAppointment(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>(
+            "confirm",
+            "Вы уверены, что хотите удалить эту запись?");
+        
+        if (confirmed)
+        {
+            await DeleteAppointment(id);
+        }
+    }
+
+    private async Task DeleteAppointment(int id)
+    {
+        try
+        {
+            await AppointmentRepository.DeleteAsync(id);
+            await LoadAppointments();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,304 @@
+﻿@page "/appointment-create"
+@rendermode InteractiveServer
+@using ClinicWeb.Models
+@using ClinicWeb.Services
+@inject IAppointmentRepository AppointmentRepository
+@inject IClientRepository ClientRepository
+@inject IPetRepository PetRepository
+@inject IVeterinarianRepository VetRepository
+@inject NavigationManager Navigation
+
+<PageTitle>Новая запись - VetClinic</PageTitle>
+
+<div class="page-header">
+    <h1>📅 Новая запись на приём</h1>
+    <a href="/appointments" class="btn btn-secondary">← Назад</a>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @statusClass">@statusMessage</div>
+}
+
+<div class="form-container">
+    <EditForm Model="@appointment" OnValidSubmit="HandleValidSubmit" FormName="CreateAppointmentForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="validation-summary" />
+
+    
+        <div class="form-section">
+            <h3>👤 Клиент</h3>
+            
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio" name="clientType" value="true"
+                           @onclick="() => useExistingClient = true"
+                           checked="@(useExistingClient == true)" />
+                    <span>Выбрать существующего клиента</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="clientType" value="false"
+                           @onclick="() => useExistingClient = false"
+                           checked="@(useExistingClient == false)" />
+                    <span>Создать нового клиента</span>
+                </label>
+            </div>
+
+            @if (useExistingClient && clients != null)
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Клиент *</label>
+                        <InputSelect @bind-Value="selectedClientId" class="form-control" 
+                                     @onchange="() => OnClientChanged()">
+                            <option value="0">Выберите клиента</option>
+                            @foreach (var client in clients)
+                            {
+                                <option value="@client.Id">@client.FullName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ФИО нового клиента *</label>
+                        <InputText @bind-Value="newClient.FullName" class="form-control" 
+                                   placeholder="Иванов Иван Иванович" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Телефон *</label>
+                        <InputText @bind-Value="newClient.Phone" class="form-control" 
+                                   placeholder="+7 (999) 123-45-67" />
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <InputText @bind-Value="newClient.Email" class="form-control" 
+                                   placeholder="example@mail.ru" />
+                    </div>
+                </div>
+            }
+        </div>
+
+
+        <div class="form-section">
+            <h3>🐾 Питомец</h3>
+            
+            @if (selectedClientId > 0 || !useExistingClient)
+            {
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="petType" value="true"
+                               @onclick="() => useExistingPet = true"
+                               checked="@(useExistingPet == true)"
+                               disabled="@(selectedClientId == 0 && useExistingClient)" />
+                        <input type="radio" name="petType" value="false"
+                               @onclick="() => useExistingPet = false"
+                               checked="@(useExistingPet == false)" />
+                    </label>
+                </div>
+
+                @if (useExistingPet && pets != null && pets.Any())
+                {
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Питомец</label>
+                            <InputSelect @bind-Value="selectedPetId" class="form-control">
+                                <option value="0">Без питомца</option>
+                                @foreach (var pet in pets)
+                                {
+                                    <option value="@pet.Id">@pet.Name (@pet.Species)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Кличка питомца</label>
+                            <InputText @bind-Value="newPet.Name" class="form-control" 
+                                       placeholder="Рыжик" />
+                        </div>
+                        <div class="form-group">
+                            <label>Вид</label>
+                            <InputText @bind-Value="newPet.Species" class="form-control" 
+                                       placeholder="Кошка" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Порода</label>
+                            <InputText @bind-Value="newPet.Breed" class="form-control" 
+                                       placeholder="Сиамская" />
+                        </div>
+                        <div class="form-group">
+                            <label>Дата рождения</label>
+                            <InputDate @bind-Value="newPet.BirthDate" class="form-control" />
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+
+        <div class="form-section">
+            <h3>👨‍️ Ветеринар</h3>
+            
+            @if (veterinarians == null)
+            {
+                <p>Загрузка ветеринаров...</p>
+            }
+            else
+            {
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ветеринар *</label>
+                        <InputSelect @bind-Value="appointment.VeterinarianId" class="form-control">
+                            <option value="0">Выберите ветеринара</option>
+                            @foreach (var vet in veterinarians)
+                            {
+                                <option value="@vet.Id">@vet.FullName</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+            }
+        </div>
+
+
+        <div class="form-section">
+            <h3>⏰ Дата и время</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Дата и время приёма *</label>
+                    <InputDate @bind-Value="appointment.AppointmentDate" 
+                               class="form-control" 
+                               format="dd.MM.yyyy HH:mm" />
+                </div>
+            </div>
+        </div>
+
+
+        <div class="form-section">
+            <h3>📋 Информация о записи</h3>
+            
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Причина записи *</label>
+                    <InputTextArea @bind-Value="appointment.Reason" 
+                                   class="form-control" 
+                                   rows="3"
+                                   placeholder="Плановый осмотр, вакцинация, болезнь и т.д." />
+                </div>
+            </div>
+        </div>
+
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Создать запись</button>
+            <a href="/appointments" class="btn btn-secondary">❌ Отмена</a>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private Appointment appointment = new();
+    private List<Client>? clients;
+    private List<Pet>? pets;
+    private List<Veterinarian>? veterinarians;
+    
+    private bool useExistingClient = true;
+    private bool useExistingPet = true;
+    private int selectedClientId;
+    private int selectedPetId;
+    
+    private Client newClient = new();
+    private Pet newPet = new();
+    
+    private string? statusMessage;
+    private string? statusClass;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clients = await ClientRepository.GetAllAsync();
+        veterinarians = await VetRepository.GetAllAsync();
+        
+        appointment.AppointmentDate = DateTime.Now.AddDays(1).Date.AddHours(10);
+        appointment.Status = "Запланировано";
+    }
+
+    private async Task OnClientChanged()
+    {
+        if (selectedClientId > 0)
+        {
+            pets = await PetRepository.GetByClientIdAsync(selectedClientId);
+        }
+        else
+        {
+            pets = new List<Pet>();
+        }
+        selectedPetId = 0;
+        StateHasChanged();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            Console.WriteLine("=== СОЗДАНИЕ ЗАПИСИ ===");
+            
+            int clientId = selectedClientId;
+            int? petId = selectedPetId > 0 ? selectedPetId : null;
+
+            if (!useExistingClient)
+            {
+                if (string.IsNullOrEmpty(newClient.FullName) || string.IsNullOrEmpty(newClient.Phone))
+                {
+                    statusMessage = "❌ Заполните ФИО и телефон клиента!";
+                    statusClass = "alert-danger";
+                    StateHasChanged();
+                    return;
+                }
+
+                await ClientRepository.AddAsync(newClient);
+                clientId = newClient.Id;
+                Console.WriteLine($"✓ Создан новый клиент: {newClient.FullName}, ID: {clientId}");
+            }
+
+            if (!useExistingPet && !string.IsNullOrEmpty(newPet.Name))
+            {
+                newPet.ClientId = clientId;
+                await PetRepository.AddAsync(newPet);
+                petId = newPet.Id;
+                Console.WriteLine($"✓ Создан новый питомец: {newPet.Name}, ID: {petId}");
+            }
+
+            appointment.ClientId = clientId;
+            appointment.PetId = petId;
+            
+            await AppointmentRepository.AddAsync(appointment);
+            
+            Console.WriteLine($"✓ Запись создана с ID: {appointment.Id}");
+
+            statusMessage = "✅ Запись успешно создана! Перенаправление...";
+            statusClass = "alert-success";
+            StateHasChanged();
+
+            await Task.Delay(800);
+            Navigation.NavigateTo("/appointments", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"❌ Ошибка: {ex.Message}";
+            statusClass = "alert-danger";
+            Console.WriteLine($"Ошибка: {ex}");
+        }
+    }
+}
